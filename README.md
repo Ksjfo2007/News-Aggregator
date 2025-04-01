@@ -1,6 +1,6 @@
 # AI News Aggregator
 
-A web application that aggregates and displays AI-related articles from various publishers. The application provides a clean interface to browse articles and view detailed summaries.
+A web application that aggregates and displays articles from various publishers, organizing articles by subject areas. The application provides a clean interface to browse articles and view detailed summaries.
 
 ## Features
 
