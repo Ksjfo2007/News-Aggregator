@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - News Aggregator{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1>Settings</h1>
+        <p>Customize your news reading experience</p>
+    </div>
+
+    <div class="settings-grid">
+        <!-- Reading Preferences -->
+        <section class="settings-section">
+            <h2>Reading Preferences</h2>
+            <div class="settings-group">
+                <label for="fontSize">Font Size</label>
+                <select id="fontSize" class="settings-select">
+                    <option value="small" {% if current_user.font_size == 'small' %}selected{% endif %}>Small</option>
+                    <option value="medium" {% if current_user.font_size == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="large" {% if current_user.font_size == 'large' %}selected{% endif %}>Large</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label for="fontType">Font Type</label>
+                <select id="fontType" class="settings-select">
+                    <option value="system" {% if current_user.font_type == 'system' %}selected{% endif %}>System Default</option>
+                    <option value="serif" {% if current_user.font_type == 'serif' %}selected{% endif %}>Serif</option>
+                    <option value="sans-serif" {% if current_user.font_type == 'sans-serif' %}selected{% endif %}>Sans Serif</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label for="colorScheme">Color Scheme</label>
+                <select id="colorScheme" class="settings-select">
+                    <option value="light" {% if current_user.color_scheme == 'light' %}selected{% endif %}>Light</option>
+                    <option value="dark" {% if current_user.color_scheme == 'dark' %}selected{% endif %}>Dark</option>
+                    <option value="system" {% if current_user.color_scheme == 'system' %}selected{% endif %}>System</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Layout Settings -->
+        <section class="settings-section">
+            <h2>Layout Settings</h2>
+            <div class="settings-group">
+                <label for="layoutStyle">Layout Style</label>
+                <select id="layoutStyle" class="settings-select">
+                    <option value="grid" {% if current_user.layout_preference == 'grid' %}selected{% endif %}>Grid</option>
+                    <option value="list" {% if current_user.layout_preference == 'list' %}selected{% endif %}>List</option>
+                    <option value="compact" {% if current_user.layout_preference == 'compact' %}selected{% endif %}>Compact</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label class="settings-toggle">
+                    Focus Mode
+                    <input type="checkbox" id="focusMode" {% if current_user.focus_mode %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Content Preferences -->
+        <section class="settings-section">
+            <h2>Content Preferences</h2>
+            <div class="settings-group">
+                <label class="settings-toggle">
+                    Kids Mode
+                    <input type="checkbox" id="kidsMode" {% if current_user.is_kids_mode %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="settings-group">
+                <label>Favorite Sources</label>
+                <div class="favorite-sources">
+                    {% for source in current_user.favorite_sources %}
+                        <span class="source-tag">
+                            {{ source.source_name }}
+                            <button class="remove-source" data-source="{{ source.source_name }}">&times;</button>
+                        </span>
+                    {% endfor %}
+                </div>
+                <div class="add-source">
+                    <input type="text" id="newSource" placeholder="Add news source">
+                    <button id="addSourceBtn">Add</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="settings-actions">
+        <button id="saveSettings" class="btn btn-primary">Save Changes</button>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Save settings
+    document.getElementById('saveSettings').addEventListener('click', function() {
+        const settings = {
+            font_size: document.getElementById('fontSize').value,
+            font_type: document.getElementById('fontType').value,
+            color_scheme: document.getElementById('colorScheme').value,
+            layout_preference: document.getElementById('layoutStyle').value,
+            focus_mode: document.getElementById('focusMode').checked,
+            is_kids_mode: document.getElementById('kidsMode').checked
+        };
+
+        fetch('/update-preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(settings)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Settings saved successfully!', 'success');
+                // Apply settings immediately
+                applySettings(settings);
+            } else {
+                showNotification('Error saving settings', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error saving settings', 'error');
+        });
+    });
+
+    // Add favorite source
+    document.getElementById('addSourceBtn').addEventListener('click', function() {
+        const sourceInput = document.getElementById('newSource');
+        const sourceName = sourceInput.value.trim();
+        
+        if (sourceName) {
+            fetch('/favorite-source', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ source_name: sourceName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const favoriteSources = document.querySelector('.favorite-sources');
+                    const sourceTag = document.createElement('span');
+                    sourceTag.className = 'source-tag';
+                    sourceTag.innerHTML = `
+                        ${sourceName}
+                        <button class="remove-source" data-source="${sourceName}">&times;</button>
+                    `;
+                    favoriteSources.appendChild(sourceTag);
+                    sourceInput.value = '';
+                    showNotification('Source added successfully!', 'success');
+                } else {
+                    showNotification('Error adding source', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error adding source', 'error');
+            });
+        }
+    });
+
+    // Remove favorite source
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-source')) {
+            const sourceName = e.target.dataset.source;
+            fetch('/remove-favorite-source', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ source_name: sourceName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    e.target.closest('.source-tag').remove();
+                    showNotification('Source removed successfully!', 'success');
+                } else {
+                    showNotification('Error removing source', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error removing source', 'error');
+            });
+        }
+    });
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    function applySettings(settings) {
+        // Apply font size
+        document.documentElement.style.setProperty('--font-size', {
+            'small': '14px',
+            'medium': '16px',
+            'large': '18px'
+        }[settings.font_size]);
+
+        // Apply font type
+        document.documentElement.style.setProperty('--font-family', {
+            'system': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            'serif': 'Georgia, serif',
+            'sans-serif': 'Arial, sans-serif'
+        }[settings.font_type]);
+
+        // Apply color scheme
+        if (settings.color_scheme === 'system') {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', settings.color_scheme);
+        }
+
+        // Apply focus mode
+        document.body.classList.toggle('focus-mode', settings.focus_mode);
+    }
+});
+</script>
+{% endblock %} 

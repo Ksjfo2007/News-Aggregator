@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} - News Aggregator{% endblock %}
+
+{% block content %}
+<div class="article-detail-container">
+    <div class="article-header">
+        <div class="article-meta">
+            <span class="source-name">{{ article.source.name }}</span>
+            <span class="article-date">{{ article.publishedAt.split('T')[0] }}</span>
+        </div>
+        <h1 class="article-title">{{ article.title }}</h1>
+        <div class="article-actions">
+            <button class="action-btn bookmark-btn" data-article-url="{{ article.url }}">
+                <i class="fas fa-bookmark"></i>
+                <span>Bookmark Article</span>
+            </button>
+            <button class="action-btn share-btn">
+                <i class="fas fa-share-alt"></i>
+                <span>Share</span>
+            </button>
+        </div>
+    </div>
+
+    {% if article.urlToImage %}
+    <div class="article-image">
+        <img src="{{ article.urlToImage }}" alt="{{ article.title }}">
+    </div>
+    {% endif %}
+
+    <div class="article-content">
+        <div class="article-description">
+            {{ article.description }}
+        </div>
+
+        <div class="article-summary">
+            <h2>Key Points</h2>
+            <ul>
+                {% for point in article.description.split('.')[:2] %}
+                    {% if point.strip() %}
+                        <li>{{ point.strip() }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="article-cta">
+            <a href="{{ article.url }}" target="_blank" class="read-full-btn">
+                <i class="fas fa-external-link-alt"></i>
+                Read Full Article
+            </a>
+        </div>
+    </div>
+
+    <div class="article-comments">
+        <h2><i class="fas fa-comments"></i> Comments</h2>
+        <div class="comment-form">
+            <textarea id="commentInput" placeholder="Share your thoughts about this article..." class="form-control"></textarea>
+            <button id="submitComment" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i>
+                Post Comment
+            </button>
+        </div>
+        <div id="commentsList" class="comments-list">
+            <!-- Comments will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle bookmark
+    const bookmarkBtn = document.querySelector('.bookmark-btn');
+    bookmarkBtn.addEventListener('click', function() {
+        const articleUrl = this.dataset.articleUrl;
+        fetch('/bookmark', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                article: {
+                    url: articleUrl,
+                    title: '{{ article.title }}',
+                    description: '{{ article.description }}',
+                    urlToImage: '{{ article.urlToImage }}',
+                    source: {
+                        name: '{{ article.source.name }}'
+                    }
+                }
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.classList.add('active');
+                showNotification('Article saved successfully!', 'success');
+            } else {
+                showNotification('Error saving article', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error saving article', 'error');
+        });
+    });
+
+    // Handle share
+    const shareBtn = document.querySelector('.share-btn');
+    shareBtn.addEventListener('click', async function() {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: '{{ article.title }}',
+                    url: '{{ article.url }}'
+                });
+            } catch (error) {
+                console.error('Error sharing:', error);
+            }
+        } else {
+            // Fallback to clipboard copy
+            navigator.clipboard.writeText('{{ article.url }}');
+            showNotification('Link copied to clipboard!', 'success');
+        }
+    });
+
+    // Handle comments
+    const commentInput = document.getElementById('commentInput');
+    const submitComment = document.getElementById('submitComment');
+    const commentsList = document.getElementById('commentsList');
+
+    // Auto-resize textarea
+    commentInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    submitComment.addEventListener('click', function() {
+        const content = commentInput.value.trim();
+        if (!content) return;
+
+        // Disable button and show loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+
+        fetch('/comment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                article_url: '{{ article.url }}',
+                content: content
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                commentInput.value = '';
+                commentInput.style.height = 'auto';
+                loadComments();
+                showNotification('Comment posted successfully!', 'success');
+            } else {
+                showNotification('Error posting comment', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error posting comment', 'error');
+        })
+        .finally(() => {
+            // Re-enable button and restore original state
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-paper-plane"></i> Post Comment';
+        });
+    });
+
+    function loadComments() {
+        fetch('/comments/{{ article.url }}')
+            .then(response => response.json())
+            .then(comments => {
+                if (comments.length === 0) {
+                    commentsList.innerHTML = `
+                        <div class="no-comments">
+                            <i class="fas fa-comment-slash"></i>
+                            <p>No comments yet. Be the first to share your thoughts!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                commentsList.innerHTML = comments.map(comment => `
+                    <div class="comment">
+                        <div class="comment-header">
+                            <img src="${comment.avatar_url || '/static/images/default-avatar.png'}" 
+                                 alt="${comment.username}" 
+                                 class="comment-avatar">
+                            <div class="comment-info">
+                                <span class="comment-username">${comment.username}</span>
+                                <span class="comment-date">${formatDate(comment.created_at)}</span>
+                            </div>
+                        </div>
+                        <div class="comment-content">${comment.content}</div>
+                    </div>
+                `).join('');
+            })
+            .catch(error => {
+                console.error('Error loading comments:', error);
+                commentsList.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Error loading comments. Please try again later.</p>
+                    </div>
+                `;
+            });
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        
+        // Less than 1 minute
+        if (diff < 60000) {
+            return 'Just now';
+        }
+        // Less than 1 hour
+        if (diff < 3600000) {
+            const minutes = Math.floor(diff / 60000);
+            return `${minutes}m ago`;
+        }
+        // Less than 24 hours
+        if (diff < 86400000) {
+            const hours = Math.floor(diff / 3600000);
+            return `${hours}h ago`;
+        }
+        // Less than 7 days
+        if (diff < 604800000) {
+            const days = Math.floor(diff / 86400000);
+            return `${days}d ago`;
+        }
+        // Otherwise, show the full date
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // Load comments on page load
+    loadComments();
+});
+</script>
+{% endblock %} 

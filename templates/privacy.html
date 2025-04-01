@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - News Aggregator{% endblock %}
+
+{% block content %}
+<div class="privacy-container">
+    <div class="privacy-header">
+        <h1>Privacy Policy</h1>
+        <p>Last updated: {{ now.strftime('%B %d, %Y') }}</p>
+    </div>
+
+    <div class="privacy-content">
+        <section class="privacy-section">
+            <h2>Introduction</h2>
+            <p>At News Aggregator, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our service.</p>
+        </section>
+
+        <section class="privacy-section">
+            <h2>Information We Collect</h2>
+            <h3>Personal Information</h3>
+            <ul>
+                <li>Account information (username, email address)</li>
+                <li>Profile information (avatar, display name)</li>
+                <li>Reading preferences and history</li>
+                <li>Bookmarked articles</li>
+                <li>Comments and interactions</li>
+            </ul>
+
+            <h3>Usage Data</h3>
+            <ul>
+                <li>Device information</li>
+                <li>Browser type and version</li>
+                <li>Operating system</li>
+                <li>IP address</li>
+                <li>Time and date of visits</li>
+            </ul>
+        </section>
+
+        <section class="privacy-section">
+            <h2>How We Use Your Information</h2>
+            <ul>
+                <li>To provide and maintain our service</li>
+                <li>To personalize your news feed</li>
+                <li>To improve our service</li>
+                <li>To communicate with you</li>
+                <li>To comply with legal obligations</li>
+            </ul>
+        </section>
+
+        <section class="privacy-section">
+            <h2>Data Security</h2>
+            <p>We implement appropriate security measures to protect your personal information. However, no method of transmission over the Internet is 100% secure, and we cannot guarantee absolute security.</p>
+        </section>
+
+        <section class="privacy-section">
+            <h2>Your Rights</h2>
+            <p>You have the right to:</p>
+            <ul>
+                <li>Access your personal data</li>
+                <li>Correct inaccurate data</li>
+                <li>Request deletion of your data</li>
+                <li>Object to data processing</li>
+                <li>Data portability</li>
+            </ul>
+        </section>
+
+        <section class="privacy-section">
+            <h2>Contact Us</h2>
+            <p>If you have any questions about this Privacy Policy, please contact us at:</p>
+            <a href="mailto:privacy@newsaggregator.com" class="contact-link">
+                <i class="fas fa-envelope"></i>
+                privacy@newsaggregator.com
+            </a>
+        </section>
+    </div>
+</div>
+{% endblock %} 

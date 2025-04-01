@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-container">
+    <div class="content-area">
+        <div class="view-controls">
+            <button class="view-mode-btn active" data-view="list">
+                <i class="fas fa-list"></i> List View
+            </button>
+            <button class="view-mode-btn" data-view="grid">
+                <i class="fas fa-th"></i> Grid View
+            </button>
+        </div>
+
+        <div class="articles-container list-view">
+            {% for article in articles %}
+            <div class="card article-card" onclick="window.location.href='/article/{{ loop.index0 }}'">
+                <div class="card-image-wrapper">
+                    {% if article.urlToImage %}
+                    <img src="{{ article.urlToImage }}" class="card-image" alt="{{ article.title }}">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='images/placeholder.jpg') }}" class="card-image" alt="No image available">
+                    {% endif %}
+                    <div class="card-overlay">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="article-meta">
+                        <span class="source-name">{{ article.source.name }}</span>
+                        <span class="publish-date">{{ article.publishedAt.split('T')[0] }}</span>
+                    </div>
+                    <h5 class="card-title">{{ article.title }}</h5>
+                    <p class="card-text">{{ article.description }}</p>
+                    <div class="article-tags">
+                        {% for topic in article.topics %}
+                        <span class="article-tag">{{ topic }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <i class="fas fa-moon"></i>
+</button>
+
+<script>
+let articles = {{ articles|tojson|safe }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // View mode controls
+    const viewButtons = document.querySelectorAll('.view-mode-btn');
+    const container = document.querySelector('.articles-container');
+    
+    viewButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            viewButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            container.classList.remove('list-view', 'grid-view');
+            container.classList.add(`${this.dataset.view}-view`);
+            localStorage.setItem('preferred-view', this.dataset.view);
+        });
+    });
+    
+    const preferredView = localStorage.getItem('preferred-view') || 'list';
+    const preferredButton = document.querySelector(`[data-view="${preferredView}"]`);
+    if (preferredButton) {
+        preferredButton.click();
+    }
+
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('themeToggle');
+    const icon = themeToggle.querySelector('i');
+    
+    // Check for saved theme preference
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+    
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+    });
+
+    // Add hover effect to cards
+    const cards = document.querySelectorAll('.article-card');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            card.querySelector('.card-overlay').style.opacity = '1';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.querySelector('.card-overlay').style.opacity = '0';
+        });
+    });
+});
+
+function updateThemeIcon(theme) {
+    const icon = document.querySelector('#themeToggle i');
+    icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+}
+</script>
+{% endblock %} 

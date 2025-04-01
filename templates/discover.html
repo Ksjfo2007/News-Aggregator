@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Discover - News Aggregator{% endblock %}
+
+{% block content %}
+<div class="discover-container">
+    <div class="discover-header">
+        <h1>Discover News</h1>
+        <p>Explore articles from different categories and sources</p>
+    </div>
+
+    <div class="discover-filters">
+        <div class="filter-section">
+            <h3>Categories</h3>
+            <div class="filter-options">
+                {% for topic in trending_topics %}
+                    <button class="filter-btn {% if topic == active_category %}active{% endif %}" 
+                            data-category="{{ topic }}">
+                        {{ topic }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Sources</h3>
+            <div class="filter-options">
+                {% for source in popular_sources %}
+                    <button class="filter-btn" data-source="{{ source }}">
+                        {{ source }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Time Range</h3>
+            <select class="time-range-select">
+                <option value="1">Last 24 hours</option>
+                <option value="7" selected>Last week</option>
+                <option value="30">Last month</option>
+            </select>
+        </div>
+
+        <div class="filter-section">
+            <h3>Sort By</h3>
+            <select class="sort-select">
+                <option value="relevancy">Relevancy</option>
+                <option value="popularity">Popularity</option>
+                <option value="publishedAt">Date</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="discover-content">
+        {% for category, articles in articles_by_category.items() %}
+            <section class="category-section" id="{{ category|lower|replace(' ', '-') }}">
+                <div class="category-header">
+                    <h2>{{ category }}</h2>
+                    <a href="#" class="view-all">View All</a>
+                </div>
+                <div class="articles-grid">
+                    {% for article in articles %}
+                        <article class="article-card">
+                            <div class="card-image-wrapper">
+                                <img src="{{ article.urlToImage or url_for('static', filename='images/placeholder.jpg') }}" 
+                                     alt="{{ article.title }}" 
+                                     class="card-image">
+                                <div class="card-overlay">
+                                    <button class="bookmark-btn" data-article-url="{{ article.url }}">
+                                        <i class="fas fa-bookmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-content">
+                                <div class="article-meta">
+                                    <span class="source-name">{{ article.source.name }}</span>
+                                    <span class="article-date">{{ article.publishedAt.split('T')[0] }}</span>
+                                </div>
+                                <h3 class="card-title">{{ article.title }}</h3>
+                                <p class="card-text">{{ article.description }}</p>
+                                <div class="article-tags">
+                                    <span class="article-tag">{{ category }}</span>
+                                </div>
+                                <a href="{{ article.url }}" target="_blank" class="read-more">Read More</a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle filter buttons
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            updateArticles();
+        });
+    });
+
+    // Handle time range and sort changes
+    const timeRangeSelect = document.querySelector('.time-range-select');
+    const sortSelect = document.querySelector('.sort-select');
+    
+    timeRangeSelect.addEventListener('change', updateArticles);
+    sortSelect.addEventListener('change', updateArticles);
+
+    // Handle bookmark buttons
+    const bookmarkBtns = document.querySelectorAll('.bookmark-btn');
+    bookmarkBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const articleUrl = this.dataset.articleUrl;
+            toggleBookmark(articleUrl, this);
+        });
+    });
+
+    function updateArticles() {
+        const activeCategory = document.querySelector('.filter-btn.active')?.dataset.category;
+        const timeRange = timeRangeSelect.value;
+        const sortBy = sortSelect.value;
+
+        fetch(`/api/articles?category=${activeCategory}&timeRange=${timeRange}&sortBy=${sortBy}`)
+            .then(response => response.json())
+            .then(data => {
+                updateArticlesGrid(data.articles);
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function toggleBookmark(articleUrl, button) {
+        fetch('/bookmark', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                article: {
+                    url: articleUrl,
+                    title: button.closest('.article-card').querySelector('.card-title').textContent,
+                    description: button.closest('.article-card').querySelector('.card-text').textContent,
+                    urlToImage: button.closest('.article-card').querySelector('.card-image').src,
+                    source: {
+                        name: button.closest('.article-card').querySelector('.source-name').textContent
+                    }
+                }
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                button.classList.add('active');
+                showNotification('Article bookmarked successfully!', 'success');
+            } else {
+                showNotification('Error bookmarking article', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error bookmarking article', 'error');
+        });
+    }
+
+    function updateArticlesGrid(articles) {
+        const grid = document.querySelector('.articles-grid');
+        grid.innerHTML = articles.map(article => `
+            <article class="article-card">
+                <div class="card-image-wrapper">
+                    <img src="${article.urlToImage || '/static/images/placeholder.jpg'}" 
+                         alt="${article.title}" 
+                         class="card-image">
+                    <div class="card-overlay">
+                        <button class="bookmark-btn" data-article-url="${article.url}">
+                            <i class="fas fa-bookmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="article-meta">
+                        <span class="source-name">${article.source.name}</span>
+                        <span class="article-date">${article.publishedAt.split('T')[0]}</span>
+                    </div>
+                    <h3 class="card-title">${article.title}</h3>
+                    <p class="card-text">${article.description}</p>
+                    <div class="article-tags">
+                        <span class="article-tag">${article.category}</span>
+                    </div>
+                    <a href="${article.url}" target="_blank" class="read-more">Read More</a>
+                </div>
+            </article>
+        `).join('');
+
+        // Reattach bookmark event listeners
+        const newBookmarkBtns = document.querySelectorAll('.bookmark-btn');
+        newBookmarkBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const articleUrl = this.dataset.articleUrl;
+                toggleBookmark(articleUrl, this);
+            });
+        });
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+});
+</script>
+{% endblock %} 

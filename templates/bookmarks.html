@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="bookmarks-container">
+    <div class="bookmarks-header">
+        <h1>Saved Articles</h1>
+        <div class="bookmarks-filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="unread">Unread</button>
+            <button class="filter-btn" data-filter="read">Read</button>
+        </div>
+    </div>
+
+    <div class="bookmarks-grid">
+        {% for bookmark in bookmarks %}
+        <div class="bookmark-card {% if bookmark.read %}read{% endif %}" data-article-url="{{ bookmark.article_url }}">
+            <div class="bookmark-image-wrapper">
+                {% if bookmark.article_image %}
+                <img src="{{ bookmark.article_image }}" alt="{{ bookmark.article_title }}" class="bookmark-image">
+                {% else %}
+                <div class="bookmark-image-placeholder">
+                    <i class="fas fa-newspaper"></i>
+                </div>
+                {% endif %}
+                <div class="bookmark-overlay">
+                    <button class="bookmark-action-btn unbookmark-btn">
+                        <i class="fas fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="bookmark-content">
+                <div class="bookmark-meta">
+                    <span class="source-name">{{ bookmark.source_name }}</span>
+                    <span class="bookmark-date">{{ bookmark.created_at.strftime('%Y-%m-%d') }}</span>
+                </div>
+                <h3 class="bookmark-title">{{ bookmark.article_title }}</h3>
+                <p class="bookmark-description">{{ bookmark.article_description }}</p>
+                <div class="bookmark-actions">
+                    <a href="{{ bookmark.article_url }}" target="_blank" class="read-btn">
+                        <i class="fas fa-external-link-alt"></i> Read Article
+                    </a>
+                    <button class="share-btn">
+                        <i class="fas fa-share-alt"></i> Share
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-bookmark"></i>
+            </div>
+            <h2>No Saved Articles Yet</h2>
+            <p>Articles you bookmark will appear here</p>
+            <a href="{{ url_for('index') }}" class="browse-btn">
+                <i class="fas fa-compass"></i> Browse Articles
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter functionality
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const bookmarkCards = document.querySelectorAll('.bookmark-card');
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const filter = btn.dataset.filter;
+            bookmarkCards.forEach(card => {
+                if (filter === 'all' || 
+                    (filter === 'read' && card.classList.contains('read')) ||
+                    (filter === 'unread' && !card.classList.contains('read'))) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    });
+    
+    // Unbookmark functionality
+    document.querySelectorAll('.unbookmark-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const card = btn.closest('.bookmark-card');
+            const articleUrl = card.dataset.articleUrl;
+            
+            try {
+                const response = await fetch('/unbookmark', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ article_url: articleUrl })
+                });
+                
+                if (response.ok) {
+                    card.style.animation = 'fadeOut 0.3s ease forwards';
+                    setTimeout(() => card.remove(), 300);
+                }
+            } catch (error) {
+                console.error('Error unbookmarking article:', error);
+            }
+        });
+    });
+    
+    // Share functionality
+    document.querySelectorAll('.share-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const card = btn.closest('.bookmark-card');
+            const articleUrl = card.dataset.articleUrl;
+            const title = card.querySelector('.bookmark-title').textContent;
+            
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: title,
+                        url: articleUrl
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                }
+            } else {
+                // Fallback to clipboard copy
+                navigator.clipboard.writeText(articleUrl);
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-share-alt"></i> Share';
+                }, 2000);
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

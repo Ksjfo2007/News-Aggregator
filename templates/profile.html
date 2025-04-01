@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - News Aggregator{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {% if current_user.avatar_url %}
+                <img src="{{ current_user.avatar_url }}" alt="Profile Avatar" class="avatar-image">
+            {% else %}
+                <div class="avatar-placeholder">
+                    <i class="fas fa-user"></i>
+                </div>
+            {% endif %}
+            <button class="avatar-upload-btn" onclick="document.getElementById('avatar-upload').click()">
+                <i class="fas fa-camera"></i> Change Photo
+            </button>
+            <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+        </div>
+        <div class="profile-info">
+            <h1>{{ current_user.full_name or current_user.username }}</h1>
+            <p class="username">@{{ current_user.username }}</p>
+            <p class="bio">{{ current_user.bio or 'No bio yet' }}</p>
+        </div>
+    </div>
+
+    <div class="profile-content">
+        <section class="profile-section">
+            <h2>Account Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Email</label>
+                    <p>{{ current_user.email }}</p>
+                </div>
+                <div class="info-item">
+                    <label>Member Since</label>
+                    <p>{{ current_user.created_at.strftime('%B %Y') }}</p>
+                </div>
+                <div class="info-item">
+                    <label>Last Updated</label>
+                    <p>{{ current_user.updated_at.strftime('%B %d, %Y') }}</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="profile-section">
+            <h2>Reading Preferences</h2>
+            <div class="preferences-grid">
+                <div class="preference-item">
+                    <label>Font Size</label>
+                    <p>{{ current_user.font_size or 'Default' }}</p>
+                </div>
+                <div class="preference-item">
+                    <label>Font Type</label>
+                    <p>{{ current_user.font_type or 'Default' }}</p>
+                </div>
+                <div class="preference-item">
+                    <label>Color Scheme</label>
+                    <p>{{ current_user.color_scheme or 'Default' }}</p>
+                </div>
+                <div class="preference-item">
+                    <label>Layout</label>
+                    <p>{{ current_user.layout_preference or 'Default' }}</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="profile-section">
+            <h2>Activity</h2>
+            <div class="activity-stats">
+                <div class="stat-item">
+                    <i class="fas fa-bookmark"></i>
+                    <div class="stat-info">
+                        <span class="stat-value">{{ current_user.bookmarks|length }}</span>
+                        <span class="stat-label">Bookmarks</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-comment"></i>
+                    <div class="stat-info">
+                        <span class="stat-value">{{ current_user.comments|length }}</span>
+                        <span class="stat-label">Comments</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-user-friends"></i>
+                    <div class="stat-info">
+                        <span class="stat-value">{{ current_user.following|length }}</span>
+                        <span class="stat-label">Following</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-users"></i>
+                    <div class="stat-info">
+                        <span class="stat-value">{{ current_user.followers|length }}</span>
+                        <span class="stat-label">Followers</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="profile-section">
+            <h2>Favorite Topics</h2>
+            <div class="topics-grid">
+                {% for topic in current_user.get_topics() %}
+                    <span class="topic-tag">{{ topic }}</span>
+                {% else %}
+                    <p class="no-topics">No topics selected yet</p>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+document.getElementById('avatar-upload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        fetch('/upload-avatar', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error uploading avatar');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error uploading avatar');
+        });
+    }
+});
+</script>
+{% endblock %} 
